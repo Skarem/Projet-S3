@@ -46,6 +46,8 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
+float lirePotentiometre(uint8_t pin);
+
 void timerCallback();
 void startPulse();
 void endPulse();
@@ -68,6 +70,8 @@ void setup() {
   // attache de l'interruption pour encodeur vex
   attachInterrupt(vexEncoder_.getPinInt(), []{vexEncoder_.isr();}, FALLING);
   
+  pinMode(POTPIN, INPUT);
+
   // Chronometre envoie message
   timerSendMsg_.setDelay(UPDATE_PERIODE);
   timerSendMsg_.setCallback(timerCallback);
@@ -102,12 +106,23 @@ void loop() {
   // mise a jour des chronometres
   timerSendMsg_.update();
   timerPulse_.update();
-  
+
   // mise à jour du PID
   pid_.run();
 }
 
 /*---------------------------Definition de fonctions ------------------------*/
+
+float lirePotentiometre(uint8_t pin)
+{
+  float angle, angleDeg;
+
+  angle = analogRead(pin);
+
+  angleDeg = ((angle - 511.5) * 265) / 1023;
+
+  return angleDeg;
+}
 
 void serialEvent(){shouldRead_ = true;}
 
@@ -155,6 +170,7 @@ void sendMsg(){
   doc["gyroZ"] = imu_.getGyroZ();
   doc["isGoal"] = pid_.isAtGoal();
   doc["actualTime"] = pid_.getActualDt();
+  doc["degresPendule"] = lirePotentiometre(POTPIN);
 
   // Serialisation
   serializeJson(doc, Serial);
@@ -208,6 +224,7 @@ void readMsg(){
 // Fonctions pour le PID
 double PIDmeasurement(){
   // To do
+  return 0;
 }
 void PIDcommand(double cmd){
   // To do
