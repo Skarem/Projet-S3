@@ -37,7 +37,7 @@ SoftTimer timerSendMsg_;            // chronometre d'envoie de messages
 SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
 
 uint16_t pulseTime_ = 0;            // temps dun pulse en ms
-float pulsePWM_ = 0;                // Amplitude de la tension au moteur [-1,1]
+float pulsePWM_ = 1;                // Amplitude de la tension au moteur [-1,1]
 
 
 float Axyz[3];                      // tableau pour accelerometre
@@ -48,6 +48,11 @@ float Mxyz[3];                      // tableau pour magnetometre
 
 float lirePotentiometre(uint8_t pin);
 void centraleInertielle(float Axyz[3], float Gxyz[3]);
+void avancer ();
+void stop();
+void reculer();
+void electromagnet_on(uint8_t pin);
+void electromagnet_off(uint8_t pin);
 
 void timerCallback();
 void startPulse();
@@ -64,10 +69,11 @@ void PIDgoalReached();
 /*---------------------------- fonctions "Main" -----------------------------*/
 
 void setup() {
-  Serial.begin(BAUD);               // initialisation de la communication serielle
-  AX_.init();                       // initialisation de la carte ArduinoX 
-  imu_.init();                      // initialisation de la centrale inertielle
-  vexEncoder_.init(2,3);            // initialisation de l'encodeur VEX
+  Serial.begin(BAUD);                // initialisation de la communication serielle
+  AX_.init();                        // initialisation de la carte ArduinoX 
+  imu_.init();                       // initialisation de la centrale inertielle
+  vexEncoder_.init(2,3);             // initialisation de l'encodeur VEX
+  pinMode(32, OUTPUT);               // Definition du IO
   // attache de l'interruption pour encodeur vex
   attachInterrupt(vexEncoder_.getPinInt(), []{vexEncoder_.isr();}, FALLING);
   
@@ -110,9 +116,52 @@ void loop() {
 
   // mise à jour du PID
   pid_.run();
+
+   // Deplacement du robot (moteur)
+  avancer();
+  delay(5000);
+  stop();
+  delay(1000);
+  reculer();
+  delay(5000);
+  stop();
+  delay(1000);
+
+  // Activer/desactiver electro-aimant
+  /* test */
+  electromagnet_on(MAGPIN);
+  delay(5000);
+  electromagnet_off(MAGPIN);
+  delay(5000);
 }
 
 /*---------------------------Definition de fonctions ------------------------*/
+
+void avancer ()
+{
+  AX_.setMotorPWM(0, pulsePWM_);
+}
+
+void stop()
+{
+  AX_.setMotorPWM(0,0);
+}
+
+void reculer()
+{
+  AX_.setMotorPWM(0, -pulsePWM_);
+}
+
+void electromagnet_on(uint8_t pin)
+{
+digitalWrite(pin, HIGH); // Activation electroAimant
+
+}
+
+void electromagnet_off(uint8_t pin)
+{
+  digitalWrite(pin, LOW); // Desactivation electroAimant
+}
 
 float lirePotentiometre(uint8_t pin)
 {
