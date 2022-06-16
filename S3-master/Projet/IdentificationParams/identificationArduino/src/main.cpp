@@ -47,6 +47,7 @@ float Mxyz[3];                      // tableau pour magnetometre
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 float lirePotentiometre(uint8_t pin);
+void centraleInertielle(float Axyz[3], float Gxyz[3]);
 
 void timerCallback();
 void startPulse();
@@ -122,6 +123,18 @@ float lirePotentiometre(uint8_t pin)
   angleDeg = ((angle - 511.5) * 265) / 1023;
 
   return angleDeg;
+}
+
+void centraleInertielle(float Axyz[3], float Gxyz[3])
+{
+  Axyz[0] = imu_.getAccelX();
+  Axyz[1] = imu_.getAccelY();
+  Axyz[2] = imu_.getAccelZ();
+
+  Gxyz[0] = imu_.getGyroX();
+  Gxyz[1] = imu_.getGyroY();
+  Gxyz[2] = imu_.getGyroZ();
+
 }
 
 void serialEvent(){shouldRead_ = true;}
