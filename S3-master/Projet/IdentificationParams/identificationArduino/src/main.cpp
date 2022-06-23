@@ -125,10 +125,12 @@ void loop() {
       etat = SetupSapin;
       break;
     case SetupSapin:
-      // If électroaimant activé && bool Pince == true
+      // Activation électroaimant
+      // bool prise == true
         etat = Acceleration;
       break;
-    case Etat3:
+    case Acceleration:
+      // PID du 
       break;
   }
 
