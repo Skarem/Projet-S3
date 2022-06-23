@@ -44,6 +44,10 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
+enum Etats { Etat1, Etat2, Etat3 };
+
+enum Etats etat;
+
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 float lirePotentiometre(uint8_t pin);
@@ -108,6 +112,16 @@ void loop() {
   }
   if(shouldPulse_){
     startPulse();
+  }
+
+  switch (etat)
+  {
+    case Etat1:
+      break;
+    case Etat2:
+      break;
+    case Etat3:
+      break;
   }
 
   // mise a jour des chronometres
