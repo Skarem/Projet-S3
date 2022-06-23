@@ -44,7 +44,7 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
-enum Etats { Etat1, Etat2, Etat3 };
+enum Etats { SetupPosition, SetupSapin, Acceleration, Aller, Stabilisation, Drop };
 
 enum Etats etat;
 
@@ -99,6 +99,8 @@ void setup() {
   pid_.setAtGoalFunc(PIDgoalReached);
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
+
+  etat = SetupPosition;
 }
 
 /* Boucle principale (infinie)*/
@@ -116,9 +118,15 @@ void loop() {
 
   switch (etat)
   {
-    case Etat1:
+    case SetupPosition:
+      // While (Micro switch pas appuyée)
+        // Reculer avec le moteur
+      
+      etat = SetupSapin;
       break;
-    case Etat2:
+    case SetupSapin:
+      // If électroaimant activé && bool Pince == true
+        etat = Acceleration;
       break;
     case Etat3:
       break;
@@ -183,7 +191,7 @@ float lirePotentiometre(uint8_t pin)
 
   angle = analogRead(pin);
 
-  angleDeg = ((angle - 511.5) * 265) / 1023;
+  angleDeg = ((angle - 511.5) * 275) / 1023;
 
   return angleDeg;
 }
