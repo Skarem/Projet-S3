@@ -99,12 +99,12 @@ void setup() {
   timerPulse_.setCallback(endPulse);
   
   // Initialisation du PID
-  pid_.setGains(19.93, 4.46, 7.28);
+  pid_.setGains(0.001993, 0.000446, 0.000728);
   // Attache des fonctions de retour
   pid_.setMeasurementFunc(PIDmeasurement);
   pid_.setCommandFunc(PIDcommand);
   pid_.setAtGoalFunc(PIDgoalReached);
-  pid_.setEpsilon(0.001);
+  pid_.setEpsilon(1);
   pid_.setPeriod(200);
 
   etat = Acceleration;
@@ -124,28 +124,43 @@ void loop() {
     startPulse();
   }
 
-
+  electromagnet_on(MAGPIN);
 
   switch (etat)
   {
     case Acceleration:
-      // Serial.println("Acceleration");
-      pid_.enable();
-      pid_.setGoal(150);
-
+      
       if (!pid_.isAtGoal())
       {
-        // Serial.println("Not at goal");
-        pid_.run();
+
+        // Serial.println("Acceleration");
+        pid_.enable();
+        pid_.setGoal(150);
+
+        if (!pid_.isAtGoal())
+        {
+          // Serial.println("Not at goal");
+          pid_.run();
+        }
+        else
+        {
+          etat = Stabilisation;
+          AX_.setMotorPWM(0, 0);
+        }
+
       }
       else
       {
         etat = Stabilisation;
+        pid_.disable();
+        AX_.setMotorPWM(0, 0);
       }
+
       break;
 
     case Stabilisation:
-      Serial.println("Stabilisation");
+
+      Serial.println(PIDmeasurement());
       break;
   }
 
@@ -361,11 +376,11 @@ void readMsg(){
 // Fonctions pour le PID
 double PIDmeasurement() {
   // To do
-  return (AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216;
+  return -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
 }
 void PIDcommand(double cmd) {
   // To do
-  AX_.setMotorPWM(0, cmd);
+  AX_.setMotorPWM(0, -cmd);
   Serial.println(cmd);
 }
 void PIDgoalReached() {
