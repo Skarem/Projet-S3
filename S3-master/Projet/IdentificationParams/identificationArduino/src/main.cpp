@@ -236,7 +236,7 @@ float lirePotentiometre(uint8_t pin)
 
   angle = analogRead(pin);
 
-  angleDeg = ((angle - 511.5) * 275) / 1023;
+  angleDeg = (((angle - 511.5) * 275) / 1023)+57;
 
   return angleDeg;
 }
@@ -318,11 +318,12 @@ void sendMsg(){
   doc["gyroY"] = imu_.getGyroY();
   doc["gyroZ"] = imu_.getGyroZ();
   doc["isGoal"] = pid_.isAtGoal();
-  doc["actualTime"] = pid_.getActualDt();
+  doc["actualTime"] = pid_.getActualDt();*/
   doc["degresPendule"] = lirePotentiometre(POTPIN);
+  doc["position"] = -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   doc["Encodeur"] = AX_.readEncoder(0);
   doc["PuissanceConsommee"] = AX_.getVoltage() * AX_.getCurrent();
-  */
+  
 
   // Serialisation
   serializeJson(doc, Serial);
