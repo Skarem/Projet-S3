@@ -45,9 +45,12 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
-enum Etats { SetupPosition, SetupSapin, Acceleration, Aller, Stabilisation, Drop };
+enum Etats { Acceleration, Stabilisation };
 
 enum Etats etat;
+
+int const MOTEUR = 0;
+double DIAMETRE_ROUE = 6.2;
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
@@ -94,7 +97,7 @@ void setup() {
   timerPulse_.setCallback(endPulse);
   
   // Initialisation du PID
-  pid_.setGains(0.25,0.1 ,0);
+  pid_.setGains(19.93, 4.46, 7.28);
   // Attache des fonctions de retour
   pid_.setMeasurementFunc(PIDmeasurement);
   pid_.setCommandFunc(PIDcommand);
@@ -102,7 +105,7 @@ void setup() {
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
 
-  etat = SetupPosition;
+  etat = Acceleration;
 
   limitSwitch.setDebounceTime(50); // set debounce time to 50 milliseconds
 }
@@ -118,26 +121,28 @@ void loop() {
   if(shouldPulse_){
     startPulse();
   }
-//detectswitch();
+
+
+
   switch (etat)
   {
-    etat = SetupPosition;
-    case SetupPosition:
-      // While (Micro switch pas appuyée)
-
-      // Reculer avec le moteur
-    //  reculer();
-
-      etat = SetupSapin;
-      break;
-    case SetupSapin:
-      // Activation électroaimant
-      electromagnet_on(MAGPIN);
-      // bool prise == true
-        etat = Acceleration;
-      break;
     case Acceleration:
-      // PID du 
+      
+      pid_.enable();
+      pid_.setGoal(150);
+
+      if (!pid_.isAtGoal())
+      {
+        pid_.run();
+      }
+      else
+      {
+        etat = Stabilisation;
+      }
+      break;
+
+    case Stabilisation:
+      Serial.println("Stabilisation");
       break;
   }
 
@@ -145,18 +150,10 @@ void loop() {
   timerSendMsg_.update();
   timerPulse_.update();
 
-  // mise à jour du PID
-  pid_.run();
-
-   // Deplacement du robot (moteur)
-  //startPulse();
-  Serial.println("Encoder");
-      AX_.resetEncoder(0);
-      AX_.readEncoder(0);
 
   //electromagnet_on(MAGPIN);
   //delay(5000);  
-  avancer();
+  //avancer();
 
  /* delay(1000);
   stop();
@@ -353,13 +350,15 @@ void readMsg(){
 
 
 // Fonctions pour le PID
-double PIDmeasurement(){
+double PIDmeasurement() {
   // To do
-  return 0;
+  return (AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216;
 }
-void PIDcommand(double cmd){
+void PIDcommand(double cmd) {
   // To do
+  AX_.setMotorPWM(0, cmd);
+  Serial.println(cmd);
 }
-void PIDgoalReached(){
+void PIDgoalReached() {
   // To do
 }
