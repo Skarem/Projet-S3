@@ -28,6 +28,7 @@ VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
 PID pid_;                           // objet PID
 
+
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
 volatile bool shouldPulse_ = false; // drapeau pour effectuer un pulse
@@ -44,9 +45,13 @@ float Axyz[3];                      // tableau pour accelerometre
 float Gxyz[3];                      // tableau pour giroscope
 float Mxyz[3];                      // tableau pour magnetometre
 
-enum Etats { SetupPosition, SetupSapin, Acceleration, Aller, Stabilisation, Drop };
+enum Etats { Acceleration, Stabilisation };
 
 enum Etats etat;
+
+int32_t positionRobot;
+int const MOTEUR = 0;
+double DIAMETRE_ROUE = 6.2;
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
@@ -92,7 +97,7 @@ void setup() {
   timerPulse_.setCallback(endPulse);
   
   // Initialisation du PID
-  pid_.setGains(0.25,0.1 ,0);
+  pid_.setGains(19.93, 4.46, 7.28); // 2, 3, 1
   // Attache des fonctions de retour
   pid_.setMeasurementFunc(PIDmeasurement);
   pid_.setCommandFunc(PIDcommand);
@@ -100,7 +105,7 @@ void setup() {
   pid_.setEpsilon(0.001);
   pid_.setPeriod(200);
 
-  etat = SetupPosition;
+  etat = Etats::Acceleration;
 }
 
 /* Boucle principale (infinie)*/
@@ -116,21 +121,28 @@ void loop() {
     startPulse();
   }
 
-  switch (etat)
+  switch(etat)
   {
-    case SetupPosition:
-      // While (Micro switch pas appuyée)
-        // Reculer avec le moteur
-      
-      etat = SetupSapin;
-      break;
-    case SetupSapin:
-      // Activation électroaimant
-      // bool prise == true
-        etat = Acceleration;
-      break;
     case Acceleration:
-      // PID du 
+      // Serial.println("Acceleration");
+      
+      pid_.enable();
+      pid_.setGoal(150);
+
+      if (!pid_.isAtGoal())
+      {
+        // Serial.println("Not at goal");
+        pid_.run();
+        
+      }
+      else
+      {
+        etat = Stabilisation;
+      }
+
+      break;
+    case Stabilisation:
+      Serial.println("Stabilisation");
       break;
   }
 
@@ -138,10 +150,7 @@ void loop() {
   timerSendMsg_.update();
   timerPulse_.update();
 
-  // mise à jour du PID
-  pid_.run();
-
-   // Deplacement du robot (moteur)
+  /* Deplacement du robot (moteur)
   avancer();
   delay(5000);
   stop();
@@ -151,12 +160,12 @@ void loop() {
   stop();
   delay(1000);
 
-  // Activer/desactiver electro-aimant
-  /* test */
+  // Activer / desactiver electro-aimant
   electromagnet_on(MAGPIN);
   delay(5000);
   electromagnet_off(MAGPIN);
   delay(5000);
+  */
 }
 
 /*---------------------------Definition de fonctions ------------------------*/
@@ -237,7 +246,7 @@ void sendMsg(){
   /* Envoit du message Json sur le port seriel */
   StaticJsonDocument<500> doc;
   // Elements du message
-
+  /*
   doc["time"] = millis();
   doc["potVex"] = analogRead(POTPIN);
   doc["encVex"] = vexEncoder_.getCount();
@@ -257,6 +266,7 @@ void sendMsg(){
   doc["isGoal"] = pid_.isAtGoal();
   doc["actualTime"] = pid_.getActualDt();
   doc["degresPendule"] = lirePotentiometre(POTPIN);
+  */
 
   // Serialisation
   serializeJson(doc, Serial);
@@ -306,15 +316,20 @@ void readMsg(){
   }
 }
 
-
 // Fonctions pour le PID
-double PIDmeasurement(){
-  // To do
-  return 0;
+double PIDmeasurement()
+{
+  return (AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216;
 }
+
 void PIDcommand(double cmd){
+  
   // To do
+  // AX_.setMotorPWM(0, cmd);
+  Serial.println(cmd);
+
 }
+
 void PIDgoalReached(){
   // To do
 }
