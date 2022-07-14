@@ -129,12 +129,13 @@ void loop() {
   switch (etat)
   {
     case Acceleration:
-      
+      // Serial.println("Acceleration");
       pid_.enable();
       pid_.setGoal(150);
 
       if (!pid_.isAtGoal())
       {
+        // Serial.println("Not at goal");
         pid_.run();
       }
       else
@@ -152,6 +153,8 @@ void loop() {
   timerSendMsg_.update();
   timerPulse_.update();
 
+  // mise à jour du PID
+  // pid_.run();
 
   //electromagnet_on(MAGPIN);
   //delay(5000);  
@@ -239,17 +242,20 @@ void detectswitch()
 {
   limitSwitch.loop(); // MUST call the loop() function first
 
-  if(limitSwitch.isPressed())
-    Serial.println("The limit switch: UNTOUCHED -> TOUCHED");
+  if(limitSwitch.isPressed()){
+    // Serial.println("The limit switch: UNTOUCHED -> TOUCHED");
+  }
 
-  if(limitSwitch.isReleased())
-    Serial.println("The limit switch: TOUCHED -> UNTOUCHED");
-
+  if(limitSwitch.isReleased()){
+    // Serial.println("The limit switch: TOUCHED -> UNTOUCHED");
+  }
   int state = limitSwitch.getState();
-  if(state == HIGH)
-	  Serial.println("The limit switch: UNTOUCHED");
-  else
-	  Serial.println("The limit switch: TOUCHED");
+  if(state == HIGH){
+	  // Serial.println("The limit switch: UNTOUCHED");
+  }
+  else{
+	  // Serial.println("The limit switch: TOUCHED");
+  }
 }
 
 void serialEvent(){shouldRead_ = true;}
@@ -297,10 +303,11 @@ void sendMsg(){
   doc["gyroY"] = imu_.getGyroY();
   doc["gyroZ"] = imu_.getGyroZ();
   doc["isGoal"] = pid_.isAtGoal();
-  doc["actualTime"] = pid_.getActualDt();*/
+  doc["actualTime"] = pid_.getActualDt();
   doc["degresPendule"] = lirePotentiometre(POTPIN);
   doc["Encodeur"] = AX_.readEncoder(0);
   doc["PuissanceConsommee"] = AX_.getVoltage() * AX_.getCurrent();
+  */
 
   // Serialisation
   serializeJson(doc, Serial);
