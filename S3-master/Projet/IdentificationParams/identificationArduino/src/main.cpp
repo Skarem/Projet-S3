@@ -22,16 +22,22 @@
 
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
-ezButton limitSwitch(7);  // create ezButton object that attach to pin 7;
+
+#define PANIER          120.0       //Positon du panier en x
+#define SWITCH_PIN      7           //Pin de la microswitch
+
+ezButton limitSwitch(SWITCH_PIN);  // create ezButton object that attach to pin 7;
 /*---------------------------- variables globales ---------------------------*/
 
 ArduinoX AX_;                       // objet arduinoX
 MegaServo servo_;                   // objet servomoteur
 VexQuadEncoder vexEncoder_;         // objet encodeur vex
 IMU9DOF imu_;                       // objet imu
+
 PID pidPosition_;                   // objets PID
 PID pidPendule_;
 PID pidLent_;
+
 
 volatile bool shouldSend_ = false;  // drapeau prêt à envoyer un message
 volatile bool shouldRead_ = false;  // drapeau prêt à lire un message
@@ -67,6 +73,14 @@ float cmd_pen = 0;
 
 bool switchPressed = false;
 
+//Variable/constante_ish d'init du PID
+float pidPosG1 = 0.025;
+float pidPosG2 = 0.001;
+float pidPosG3 = 0.005;
+float pidPosEpsilon = 5;
+float pidPosGoal = PANIER;
+
+
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 double lirePotentiometre( /*uint8_t pin*/ );
@@ -74,8 +88,8 @@ void electromagnet_on(uint8_t pin);
 void electromagnet_off(uint8_t pin);
 void detectswitch();
 
-void avancer(double goal);
-void reculer();
+void avancer(PID *pid, double goal);
+void reculer(PID *pid);
 
 void timerCallback();
 void startPulse();
@@ -114,23 +128,6 @@ void setup() {
   // Chronometre duration pulse
   timerPulse_.setCallback(endPulse);
 
- /* 
-  pidPosition_.setGains(0.025, 0.001, 0.005);
-  pidPosition_.setMeasurementFunc(PIDmeasurement);
-  pidPosition_.setCommandFunc(PIDcommand);
-  pidPosition_.setEpsilon(5);
-  pidPosition_.setPeriod(50);
-  pidPosition_.setTimeGoal(0);
-
-  pidPendule_.setGains(0.01, 0.001, 0.001);
-
-  pidPendule_.setMeasurementFunc(PIDmeasurementPendule);
-  pidPendule_.setCommandFunc(PIDcommandPendule);
-  pidPendule_.setEpsilon(3);
-  pidPendule_.setPeriod(50);
-  pidPendule_.setTimeGoal(1000);
-*/
-
   etat = AccrocherSapin;
 
   limitSwitch.setDebounceTime(50); // set debounce time to 50 milliseconds
@@ -161,8 +158,8 @@ void loop() {
   switch(etat)
   {
     case AccrocherSapin:
-      while(digitalRead(7));
-      PIDinit();
+    {
+      while(digitalRead(SWITCH_PIN));
       electromagnet_on(MAGPIN);
       
       if (!timerFlag_)
@@ -176,43 +173,86 @@ void loop() {
         timerFlag_ = false;
       }
       break;
+    }
+
     case Acceleration:
+    {
+      pidPosition_.setGains(pidPosG1, pidPosG2, pidPosG3);
+      pidPosition_.setMeasurementFunc(PIDmeasurement);
+      pidPosition_.setCommandFunc(PIDcommand);
+      pidPosition_.setEpsilon(pidPosEpsilon);
+      pidPosition_.setPeriod(50);
+      pidPosition_.setTimeGoal(0);
       flag_PID_pos = true;  
-      avancer(130.0);
+      avancer(&pidPosition_, PANIER);
 
       if (pidPosition_.isAtGoal())
       {
         activePID = false;
-        AX_.setMotorPWM(0, 0); 
+        AX_.setMotorPWM(0, 0);
         etat = Stabilisation;
         flag_PID_pos = false;
+        pidPosition_.~PID();
       }
       break;
+    }
+
     case Stabilisation:
+    {  
       if (!activePIDPendule)
       {
+        pidPendule_ = PID();
+          pidPendule_.setGains(0.01, 0.001, 0.001);
+          pidPendule_.setMeasurementFunc(PIDmeasurementPendule);
+          pidPendule_.setCommandFunc(PIDcommandPendule);
+          pidPendule_.setEpsilon(3);
+          pidPendule_.setPeriod(50);
+          pidPendule_.setTimeGoal(1000);
+
+
+        pidPosition_ = PID();
+          pidPosition_.setGains(pidPosG1, pidPosG2, pidPosG3);
+          pidPosition_.setMeasurementFunc(PIDmeasurement);
+          pidPosition_.setCommandFunc(PIDcommand);
+          pidPosition_.setEpsilon(pidPosEpsilon);
+          pidPosition_.setPeriod(50);
+          pidPosition_.setTimeGoal(0);
+
         pidPendule_.enable();
-        pidPendule_.setGoal(0);
+        pidPosition_.enable();
+
+        pidPendule_.setGoal(pidPosGoal);
+        pidPosition_.setGoal(pidPosGoal);
+
+        pidPosition_.disable();
         activePIDPendule = true;
       }
 
-      if (!pidPendule_.isAtGoal())
+      if (!pidPendule_.isAtGoal() && !pidPosition_.isAtGoal())
       {
-        Serial.println(pidPosition_.isAtGoal());
         pidPendule_.run();
+        pidPosition_.run();
       }
       else 
       {
         AX_.setMotorPWM(0, 0);
-        Serial.println(pidPosition_.isAtGoal());
+        pidPendule_.~PID();
+        pidPosition_.~PID();
+
         etat = Drop;
       }
       break;
+    }
+
     case Drop:
+    {
       electromagnet_off(MAGPIN);
       etat = ReculerVite;
       break;
+    }
+
     case ReculerVite:
+    {
       Serial.println("Reculer Vite");
 
       AX_.setMotorPWM(0, 0.8);
@@ -220,51 +260,54 @@ void loop() {
       
       etat = ReculerLent;
       break;
-      
+    }
+
     case ReculerLent:
+    {
       Serial.println("Reculer Lent");
-      while (digitalRead(7))
+      while (digitalRead(SWITCH_PIN))
       {
         AX_.setMotorPWM(0, 0.2);
       }
       AX_.setMotorPWM(0, 0);
       etat = AccrocherSapin;
       break;
+    }
   }
 }
 
 /*--------------------------- Definition de fonctions ------------------------*/
 
-void avancer(double goal)
+void avancer(PID *pid, double goal)
 {
   if (!activePID)
   {
-    pidPosition_.setGoal(goal);
-    pidPosition_.enable();
+    pid->setGoal(goal);
+    pid->enable();
     activePID = true;
     dir = Avancer;
   }
   else
   {
-    pidPosition_.run();
+    pid->run();
   }
 }
 
 double posReculer;
 
-void reculer()
+void reculer(PID *pid)
 {
   if (!activePID)
   {
     posReculer = (AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216;
-    pidPosition_.setGoal(0.5 * posReculer);
-    pidPosition_.enable();
+    pid->setGoal(0.5 * posReculer);
+    pid->enable();
     activePID = true;
     dir = Reculer;
   }
   else
   {
-    pidPosition_.run();
+    pid->run();
   }
 }
 
@@ -399,12 +442,13 @@ void readMsg(){
      shouldPulse_ = doc["pulse"];
   }
   parse_msg = doc["setGoal"];
+
   if(!parse_msg.isNull()){
-    pidPosition_.disable();
-    pidPosition_.setGains(doc["setGoal"][0], doc["setGoal"][1], doc["setGoal"][2]);
-    pidPosition_.setEpsilon(doc["setGoal"][3]);
-    pidPosition_.setGoal(doc["setGoal"][4]);
-    pidPosition_.enable();
+    pidPosG1 = doc["setGoal"][0];
+    pidPosG2 = doc["setGoal"][1];
+    pidPosG3 = doc["setGoal"][2];
+    pidPosEpsilon = doc["setGoal"][3];
+    pidPosGoal = doc["setGoal"][4];
   }
 }
 
@@ -454,22 +498,4 @@ void PIDcommand(double cmd)
 void PIDgoalReached() 
 {
   // To do
-}
-
-void PIDinit(void)
-{
-  pidPosition_.setGains(0.025, 0.001, 0.005);
-  pidPosition_.setMeasurementFunc(PIDmeasurement);
-  pidPosition_.setCommandFunc(PIDcommand);
-  pidPosition_.setEpsilon(5);
-  pidPosition_.setPeriod(50);
-  pidPosition_.setTimeGoal(0);
-
-  pidPendule_.setGains(0.01, 0.001, 0.001);
-
-  pidPendule_.setMeasurementFunc(PIDmeasurementPendule);
-  pidPendule_.setCommandFunc(PIDcommandPendule);
-  pidPendule_.setEpsilon(3);
-  pidPendule_.setPeriod(50);
-  pidPendule_.setTimeGoal(1000);
 }
