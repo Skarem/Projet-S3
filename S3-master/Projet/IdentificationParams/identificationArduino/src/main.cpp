@@ -23,7 +23,7 @@
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
 
-#define PANIER          120.0       //Positon du panier en x
+#define PANIER          70.0        //Positon du panier en x
 #define SWITCH_PIN      3           //Pin de la microswitch
 
 ezButton limitSwitch(SWITCH_PIN);  // create ezButton object that attach to pin 7;
@@ -276,8 +276,11 @@ void loop() {
     
       Serial.println("Reculer Vite");
 
-      while((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 10)
+      while((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 15)
         AX_.setMotorPWM(0, 3);
+
+      while((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 7)
+        AX_.setMotorPWM(0, 0.6);
       
       etat = ReculerLent;
       break;
