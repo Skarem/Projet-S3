@@ -68,6 +68,8 @@ bool activePID = false;
 bool activePIDPendule = false;
 bool activePIDLent = false;
 bool flagAvancerInit = false;
+bool powerInit = false;
+unsigned long timerPower = 0;
 
 float cmd_pos = 0;
 float cmd_pen = 0;
@@ -81,6 +83,7 @@ float pidPosG3 = 0.0025;
 float pidPosEpsilon = 5;
 float pidPosGoal = PANIER;
 
+float puissanceConsomme = 0;
 
 /*------------------------- Prototypes de fonctions -------------------------*/
 
@@ -107,6 +110,7 @@ void PIDgoalReached();
 
 double PIDmeasurementPendule();
 void PIDcommandPendule(double cmd);
+float getEnergie(void);
 
 /*---------------------------- fonctions "Main" -----------------------------*/
 
@@ -298,6 +302,8 @@ void loop() {
       break;
     
   }
+  
+  sendMsg();
 }
 
 /*--------------------------- Definition de fonctions ------------------------*/
@@ -410,10 +416,10 @@ void sendMsg(){
   StaticJsonDocument<500> doc;
   // Elements du message
 
- /* doc["time"] = millis();
+  doc["time"] = millis();
   doc["potVex"] = analogRead(POTPIN);
   doc["encVex"] = vexEncoder_.getCount();
-  doc["goal"] = pid_.getGoal();
+  doc["goal"] = pidPosition_.getGoal();
   doc["measurements"] = PIDmeasurement();
   doc["voltage"] = AX_.getVoltage();
   doc["current"] = AX_.getCurrent(); 
@@ -426,13 +432,13 @@ void sendMsg(){
   doc["gyroX"] = imu_.getGyroX();
   doc["gyroY"] = imu_.getGyroY();
   doc["gyroZ"] = imu_.getGyroZ();
-  doc["isGoal"] = pid_.isAtGoal();
-  doc["actualTime"] = pid_.getActualDt();
-  doc["degresPendule"] = lirePotentiometre(POTPIN);
+  doc["isGoal"] = pidPosition_.isAtGoal();
+  doc["actualTime"] = pidPosition_.getActualDt();
+  doc["degresPendule"] = lirePotentiometre();
   doc["position"] = -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   doc["Encodeur"] = AX_.readEncoder(0);
-  doc["PuissanceConsommee"] = AX_.getVoltage() * AX_.getCurrent();
-  */
+  doc["PuissanceInstantane"] = AX_.getVoltage() * AX_.getCurrent();
+  doc["EnergieConsommee"] = puissanceConsomme;
 
   // Serialisation
   serializeJson(doc, Serial);
@@ -535,4 +541,21 @@ void PIDcommand(double cmd)
 void PIDgoalReached() 
 {
   // To do
+}
+
+//Calcul de la puissance consommé
+float getEnergie(void)
+{
+  if (!powerInit)
+  {
+    puissanceConsomme = 0;
+    powerInit = true;
+  }
+  else if(powerInit)
+  {
+    if (millis() - timerPower > 1000)
+    {
+      puissanceConsomme += AX_.getVoltage() * AX_.getCurrent();
+    }
+  }
 }
