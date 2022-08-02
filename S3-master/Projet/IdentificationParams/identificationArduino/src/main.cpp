@@ -21,7 +21,7 @@
 #define PASPARTOUR      64          // Nombre de pas par tour du moteur
 #define RAPPORTVITESSE  50          // Rapport de vitesse du moteur
 
-#define PANIER          70.0        //Positon du panier en x
+#define PANIER          100.0        //Positon du panier en x
 #define SWITCH_PIN      3           //Pin de la microswitch
 
 // ezButton limitSwitch(SWITCH_PIN);  // create ezButton object that attach to pin 7;
@@ -46,7 +46,7 @@ SoftTimer timerPulse_;              // chronometre pour la duree d'un pulse
 uint16_t pulseTime_ = 1;            // temps dun pulse en ms
 float pulsePWM_ = 1;                // Amplitude de la tension au moteur [-1,1]
 
-enum Etats { AccrocherSapin, Acceleration, Stabilisation, Drop, ReculerVite, ReculerLent };
+enum Etats { AccrocherSapin, AccelRapide, Acceleration, Stabilisation, Drop, ReculerVite, ReculerLent };
 enum Etats etat;
 
 enum Direction { Avancer, Reculer };
@@ -78,6 +78,9 @@ float pidPosGoal = PANIER;
 
 float puissanceConsomme = 0;
 
+int deccelCounter = 0;
+
+unsigned long prevMillis = 0;
 /*------------------------- Prototypes de fonctions -------------------------*/
 
 double lirePotentiometre();
@@ -133,7 +136,7 @@ void setup() {
   // Serial.println("Setup Done");
 }
 
-const unsigned long TIME_SAPIN = 3000;
+const unsigned long TIME_SAPIN = 1500;
 unsigned long timer_ = 0;
 bool timerFlag_ = false;
 bool flag_PID_pos = false;
@@ -155,8 +158,10 @@ void loop() {
   timerPulse_.update();
 
   // mise à jour du PID
+  /*
   if (boutonStart)
   {
+    */
     switch(etat)
     {
       case AccrocherSapin:
@@ -172,6 +177,17 @@ void loop() {
         else if (millis() - timer_ >= TIME_SAPIN)
         { 
           timerFlag_ = false;
+          etat = AccelRapide;
+        }
+        break;
+
+      case AccelRapide:
+        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -0.5 * PANIER)
+        {
+          AX_.setMotorPWM(0, -1);
+        }
+        else
+        {
           etat = Acceleration;
         }
         break;
@@ -259,28 +275,32 @@ void loop() {
         break;
 
       case ReculerVite:
-      
-        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 15)
+        
+        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -35)
         {
           AX_.setMotorPWM(0, 1);
         }
-        else if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 7)
+        else
         {
-          AX_.setMotorPWM(0, 0.6);
-        }
-        else 
-        {
-          etat = ReculerLent;
+            if (deccelCounter < 16 && millis()-prevMillis > 1)
+            {
+              prevMillis = millis();
+              AX_.setMotorPWM(0, 1-(deccelCounter*0.05));
+            }
+            else if(deccelCounter >= 15)
+              etat = ReculerLent;
+
+            ++deccelCounter;
         }
         break;
 
       case ReculerLent:
       
-        // Serial.println("Reculer Lent");
-        
         if (digitalRead(SWITCH_PIN))
         {
-          AX_.setMotorPWM(0, 0.2);
+          deccelCounter = 0;
+          prevMillis = 0;
+          AX_.setMotorPWM(0, 0.1);
         }
         else
         {
@@ -289,14 +309,17 @@ void loop() {
         }
         break;
     }
+    /*
   }
   else if (!boutonStart)
   {
     pidPendule_.~PID();
     pidPosition_.~PID();
+    AX_.resetEncoder(0);
     AX_.setMotorPWM(0, 0);
     etat = AccrocherSapin;
   }
+  */
 
   getEnergie();
   
@@ -388,27 +411,23 @@ void sendMsg(){
   // Elements du message
   doc["time"] = millis();
   doc["potVex"] = analogRead(POTPIN);
-  //doc["encVex"] = vexEncoder_.getCount();
-  //doc["goal"] = pidPosition_.getGoal();
-  //doc["measurements"] = PIDmeasurement();
-  //doc["voltage"] = AX_.getVoltage();
-  //doc["current"] = AX_.getCurrent(); 
-  doc["pulsePWM"] = pulsePWM_;
-  doc["pulseTime"] = pulseTime_;
-  doc["inPulse"] = isInPulse_;
-  //doc["accelX"] = imu_.getAccelX();
-  //doc["accelY"] = imu_.getAccelY();
-  //doc["accelZ"] = imu_.getAccelZ();
-  //doc["gyroX"] = imu_.getGyroX();
-  //doc["gyroY"] = imu_.getGyroY();
-  //doc["gyroZ"] = imu_.getGyroZ();
-  //doc["isGoal"] = pidPosition_.isAtGoal();
-  //doc["actualTime"] = pidPosition_.getActualDt();
   doc["degresPendule"] = lirePotentiometre();
   doc["position"] = -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   doc["Encodeur"] = AX_.readEncoder(0);
   doc["PuissanceInstantane"] = AX_.getVoltage() * AX_.getCurrent();
-  doc["EnergieConsommee"] = puissanceConsomme;
+  doc["EnergieConsommee"] = puissanceConsomme; 
+  doc["pulsePWM"] = pulsePWM_;
+  doc["pulseTime"] = pulseTime_;
+  doc["inPulse"] = isInPulse_;
+  doc["accelX"] = imu_.getAccelX();
+  doc["accelY"] = imu_.getAccelY();
+  doc["accelZ"] = imu_.getAccelZ();
+  doc["gyroX"] = imu_.getGyroX();
+  doc["gyroY"] = imu_.getGyroY();
+  doc["gyroZ"] = imu_.getGyroZ();
+  doc["isGoal"] = pidPosition_.isAtGoal();
+  doc["actualTime"] = pidPosition_.getActualDt();
+
 
   // Serialisation
   serializeJson(doc, Serial);
