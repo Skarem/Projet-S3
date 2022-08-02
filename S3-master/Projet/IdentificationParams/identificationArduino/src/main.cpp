@@ -298,6 +298,8 @@ void loop() {
     etat = AccrocherSapin;
   }
 
+  getEnergie();
+  
   sendMsg();
 }
 
@@ -386,22 +388,22 @@ void sendMsg(){
   // Elements du message
   doc["time"] = millis();
   doc["potVex"] = analogRead(POTPIN);
-  doc["encVex"] = vexEncoder_.getCount();
-  doc["goal"] = pidPosition_.getGoal();
-  doc["measurements"] = PIDmeasurement();
-  doc["voltage"] = AX_.getVoltage();
-  doc["current"] = AX_.getCurrent(); 
+  //doc["encVex"] = vexEncoder_.getCount();
+  //doc["goal"] = pidPosition_.getGoal();
+  //doc["measurements"] = PIDmeasurement();
+  //doc["voltage"] = AX_.getVoltage();
+  //doc["current"] = AX_.getCurrent(); 
   doc["pulsePWM"] = pulsePWM_;
   doc["pulseTime"] = pulseTime_;
   doc["inPulse"] = isInPulse_;
-  doc["accelX"] = imu_.getAccelX();
-  doc["accelY"] = imu_.getAccelY();
-  doc["accelZ"] = imu_.getAccelZ();
-  doc["gyroX"] = imu_.getGyroX();
-  doc["gyroY"] = imu_.getGyroY();
-  doc["gyroZ"] = imu_.getGyroZ();
-  doc["isGoal"] = pidPosition_.isAtGoal();
-  doc["actualTime"] = pidPosition_.getActualDt();
+  //doc["accelX"] = imu_.getAccelX();
+  //doc["accelY"] = imu_.getAccelY();
+  //doc["accelZ"] = imu_.getAccelZ();
+  //doc["gyroX"] = imu_.getGyroX();
+  //doc["gyroY"] = imu_.getGyroY();
+  //doc["gyroZ"] = imu_.getGyroZ();
+  //doc["isGoal"] = pidPosition_.isAtGoal();
+  //doc["actualTime"] = pidPosition_.getActualDt();
   doc["degresPendule"] = lirePotentiometre();
   doc["position"] = -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   doc["Encodeur"] = AX_.readEncoder(0);
