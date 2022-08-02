@@ -260,17 +260,15 @@ void loop() {
       
       if (!timerFlag_)
       {
-        //while(digitalRead(SWITCH_PIN));
+        electromagnet_off(MAGPIN);
         timer_ = millis();
         timerFlag_ = true;
       }
-      else if (millis() - timer_ >= TIME_SAPIN)
+      else if (millis() - timer_ >= 250)
       { 
         timerFlag_ = false;
+        etat = ReculerVite;
       }
-
-      electromagnet_off(MAGPIN);
-      etat = ReculerVite;
       break;
     
 
@@ -278,8 +276,8 @@ void loop() {
     
       Serial.println("Reculer Vite");
 
-      AX_.setMotorPWM(0, 0.8);
-      while(AX_.readEncoder((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216) > 30);
+      while((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 10)
+        AX_.setMotorPWM(0, 3);
       
       etat = ReculerLent;
       break;
