@@ -91,7 +91,7 @@ void electromagnet_off(uint8_t pin);
 void avancer(PID *pid, double goal);
 void reculer(PID *pid);
 
-float getEnergie(void);
+void getEnergie(void);
 
 void timerCallback();
 void startPulse();
@@ -158,10 +158,8 @@ void loop() {
   timerPulse_.update();
 
   // mise à jour du PID
-  /*
   if (boutonStart)
   {
-    */
     switch(etat)
     {
       case AccrocherSapin:
@@ -222,7 +220,7 @@ void loop() {
           pidPendule_.setGains(0.01, 0.001, 0.001);
           pidPendule_.setMeasurementFunc(PIDmeasurementPendule);
           pidPendule_.setCommandFunc(PIDcommandPendule);
-          pidPendule_.setEpsilon(4);
+          pidPendule_.setEpsilon(9);
           pidPendule_.setPeriod(50);
           pidPendule_.setTimeGoal(500);
 
@@ -276,7 +274,7 @@ void loop() {
 
       case ReculerVite:
         
-        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -35)
+        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -40)
         {
           AX_.setMotorPWM(0, 1);
         }
@@ -300,7 +298,7 @@ void loop() {
         {
           deccelCounter = 0;
           prevMillis = 0;
-          AX_.setMotorPWM(0, 0.1);
+          AX_.setMotorPWM(0, 0.2);
         }
         else
         {
@@ -309,7 +307,6 @@ void loop() {
         }
         break;
     }
-    /*
   }
   else if (!boutonStart)
   {
@@ -319,7 +316,6 @@ void loop() {
     AX_.setMotorPWM(0, 0);
     etat = AccrocherSapin;
   }
-  */
 
   getEnergie();
   
@@ -415,7 +411,7 @@ void sendMsg(){
   doc["position"] = -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   doc["Encodeur"] = AX_.readEncoder(0);
   doc["PuissanceInstantane"] = AX_.getVoltage() * AX_.getCurrent();
-  doc["EnergieConsommee"] = puissanceConsomme; 
+  doc["EnergieConsommee"] = puissanceConsomme/(1000.0*3600.0); 
   doc["pulsePWM"] = pulsePWM_;
   doc["pulseTime"] = pulseTime_;
   doc["inPulse"] = isInPulse_;
@@ -522,10 +518,7 @@ double PIDmeasurement()
   {
     return -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   }
-  else if (dir == Reculer)
-  {
-    return ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
-  }
+  return ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
 }
 
 void PIDcommand(double cmd) 
@@ -551,7 +544,7 @@ void PIDcommand(double cmd)
 }
 
 //Calcul de la puissance consommé
-float getEnergie(void)
+void getEnergie(void)
 {
   if (!powerInit)
   {
@@ -560,9 +553,9 @@ float getEnergie(void)
   }
   else if(powerInit)
   {
-    if (millis() - timerPower > 1000)
+    if (millis() - timerPower > 1)
     {
-      puissanceConsomme += AX_.getVoltage() * AX_.getCurrent();
+      puissanceConsomme += (AX_.getVoltage() * AX_.getCurrent());
     }
   }
 }
