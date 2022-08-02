@@ -159,15 +159,13 @@ void loop() {
   {
     switch(etat)
     {
-
       case AccrocherSapin:
+        
         electromagnet_on(MAGPIN);
         AX_.resetEncoder(0);
 
-        /* Attendre 3 secondes
         if (!timerFlag_)
         {
-          //while(digitalRead(SWITCH_PIN));
           timer_ = millis();
           timerFlag_ = true;
         }
@@ -176,10 +174,10 @@ void loop() {
           timerFlag_ = false;
           etat = Acceleration;
         }
-        */
         break;
 
       case Acceleration:
+
         if (!flagAvancerInit)
         {
           pidPosition_ = PID();
@@ -198,7 +196,6 @@ void loop() {
           flag_PID_pos = false;
           pidPosition_.~PID();
         }
-
         break;
 
       case Stabilisation:
@@ -235,15 +232,6 @@ void loop() {
         {
           pidPendule_.run();
           pidPosition_.run();
-
-          /*
-          Serial.print("pid pendule : ");
-          Serial.println(pidPendule_.isAtGoal());
-          Serial.print("pid Position : ");
-          Serial.println(pidPosition_.isAtGoal());
-          Serial.print("lirePotentiometre() : ");
-          Serial.println(lirePotentiometre());
-          */
         }
         else
         {
@@ -253,7 +241,6 @@ void loop() {
           activePIDPendule = false;
           etat = Drop;
         }
-      
         break;
       
       case Drop:
@@ -269,36 +256,38 @@ void loop() {
           timerFlag_ = false;
           etat = ReculerVite;
         }
-
         break;
 
       case ReculerVite:
       
-        // Serial.println("Reculer Vite");
-
-        while((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 15)
-          AX_.setMotorPWM(0, 3);
-
-        while((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 7)
+        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 15)
+        {
+          AX_.setMotorPWM(0, 1);
+        }
+        else if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < 7)
+        {
           AX_.setMotorPWM(0, 0.6);
-        
-        etat = ReculerLent;
-        
+        }
+        else 
+        {
+          etat = ReculerLent;
+        }
         break;
-      
+
       case ReculerLent:
       
         // Serial.println("Reculer Lent");
         
-        while (digitalRead(SWITCH_PIN))
+        if (digitalRead(SWITCH_PIN))
         {
           AX_.setMotorPWM(0, 0.2);
         }
-        AX_.setMotorPWM(0, 0);
-        etat = AccrocherSapin;
-
+        else
+        {
+          AX_.setMotorPWM(0, 0);
+          etat = AccrocherSapin;
+        }
         break;
-      
     }
   }
   else if (!boutonStart)
