@@ -56,7 +56,6 @@ int const MOTEUR = 0;
 double const DIAMETRE_ROUE = 6.4;
 
 bool boutonStart = false;
-bool boutonAimant = false;
 
 bool activePID = false;
 bool activePIDPendule = false;
@@ -162,7 +161,7 @@ void loop() {
   timerPulse_.update();
 
   // mise à jour du PID
-  if (!boutonStart)
+  if (boutonStart)
   {
     switch(etat)
     {
@@ -225,9 +224,9 @@ void loop() {
           pidPendule_.setGains(0.01, 0.001, 0.001);
           pidPendule_.setMeasurementFunc(PIDmeasurementPendule);
           pidPendule_.setCommandFunc(PIDcommandPendule);
-          pidPendule_.setEpsilon(9);
+          pidPendule_.setEpsilon(10);
           pidPendule_.setPeriod(50);
-          pidPendule_.setTimeGoal(500);
+          pidPendule_.setTimeGoal(250);
 
           pidPosition_ = PID();
           pidPosition_.setGains(pidPosG1, pidPosG2, pidPosG3);
@@ -289,7 +288,7 @@ void loop() {
               flagReculerVite = true;
             ++accelCounter;
         }
-        else if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -70)
+        else if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -55)
         {
           AX_.setMotorPWM(0, 1);
         }
@@ -329,15 +328,16 @@ void loop() {
   {
     pidPendule_.~PID();
     pidPosition_.~PID();
+    electromagnet_off(MAGPIN);
     AX_.resetEncoder(0);
     AX_.setMotorPWM(0, 0);
     etat = AccrocherSapin;
   }
 
-  getEnergie();
-  
   sendMsg();
+  getEnergie();
 }
+
 
 /*--------------------------- Definition de fonctions ------------------------*/
 
@@ -427,8 +427,8 @@ void sendMsg(){
   doc["degresPendule"] = lirePotentiometre();
   doc["position"] = -((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216);
   doc["Encodeur"] = AX_.readEncoder(0);
-  doc["PuissanceInstantane"] = AX_.getVoltage() * AX_.getCurrent();
-  doc["EnergieConsommee"] = puissanceConsomme/(1000.0*3600.0); 
+  doc["PuissanceInstantane"] = AX_.getVoltage();
+  doc["EnergieConsommee"] = (puissanceConsomme/(50.0));
   doc["pulsePWM"] = pulsePWM_;
   doc["pulseTime"] = pulseTime_;
   doc["inPulse"] = isInPulse_;
@@ -552,16 +552,23 @@ void PIDcommand(double cmd)
 //Calcul de la puissance consommé
 void getEnergie(void)
 {
-  if (!powerInit)
+  if (boutonStart)
   {
-    puissanceConsomme = 0;
-    powerInit = true;
-  }
-  else if(powerInit)
-  {
-    if (millis() - timerPower > 1)
+    if (!powerInit)
     {
-      puissanceConsomme += (AX_.getVoltage() * AX_.getCurrent());
+      puissanceConsomme = 0;
+      powerInit = true;
     }
+    else if(powerInit)
+    {
+      if (millis() - timerPower > 20)
+      {
+        puissanceConsomme += (AX_.getVoltage() * AX_.getCurrent());
+      }
+    }
+  }
+  else
+  {
+    powerInit = false;
   }
 }
