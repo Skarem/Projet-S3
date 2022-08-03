@@ -13,7 +13,7 @@
 /*------------------------------ Constantes ---------------------------------*/
 
 #define BAUD            115200      // Frequence de transmission serielle
-#define UPDATE_PERIODE  100         // Periode (ms) d'envoie d'etat general
+#define UPDATE_PERIODE  50         // Periode (ms) d'envoie d'etat general
 
 #define MAGPIN          32          // Port numerique pour electroaimant
 #define POTPIN          A5          // Port analogique pour le potentiometre
@@ -63,6 +63,9 @@ bool activePIDPendule = false;
 bool flagAvancerInit = false;
 bool powerInit = false;
 unsigned long timerPower = 0;
+bool flagReculerVite = false;
+int accelCounter = 0;
+unsigned long prevMillisAccel = 0;
 
 float cmd_pos = 0;
 float cmd_pen = 0;
@@ -73,6 +76,7 @@ double posReculer;
 float pidPosG1 = 0.025;
 float pidPosG2 = 0.001;
 float pidPosG3 = 0.0025;
+float pidPosEpsilonStab = 5;
 float pidPosEpsilon = 5;
 float pidPosGoal = PANIER;
 
@@ -136,7 +140,7 @@ void setup() {
   // Serial.println("Setup Done");
 }
 
-const unsigned long TIME_SAPIN = 1500;
+const unsigned long TIME_SAPIN = 500;
 unsigned long timer_ = 0;
 bool timerFlag_ = false;
 bool flag_PID_pos = false;
@@ -158,7 +162,7 @@ void loop() {
   timerPulse_.update();
 
   // mise à jour du PID
-  if (boutonStart)
+  if (!boutonStart)
   {
     switch(etat)
     {
@@ -217,6 +221,7 @@ void loop() {
         if (!activePIDPendule)
         {
           pidPendule_ = PID();
+          //pidPendule_.setGains(0.01, 0.001, 0.001);
           pidPendule_.setGains(0.01, 0.001, 0.001);
           pidPendule_.setMeasurementFunc(PIDmeasurementPendule);
           pidPendule_.setCommandFunc(PIDcommandPendule);
@@ -228,9 +233,9 @@ void loop() {
           pidPosition_.setGains(pidPosG1, pidPosG2, pidPosG3);
           pidPosition_.setMeasurementFunc(PIDmeasurement);
           pidPosition_.setCommandFunc(PIDcommand);
-          pidPosition_.setEpsilon(pidPosEpsilon);
+          pidPosition_.setEpsilon(pidPosEpsilonStab);
           pidPosition_.setPeriod(50);
-          pidPosition_.setTimeGoal(500);
+          pidPosition_.setTimeGoal(250);
 
           pidPendule_.enable();
           pidPosition_.enable();
@@ -273,14 +278,24 @@ void loop() {
         break;
 
       case ReculerVite:
-        
-        if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -40)
+        if (!flagReculerVite)
+        {
+            if (accelCounter < 16 && millis() - prevMillisAccel > 1)
+            {
+              prevMillisAccel = millis();
+              AX_.setMotorPWM(0, (accelCounter*0.05));
+            }
+            else if(accelCounter >= 15)
+              flagReculerVite = true;
+            ++accelCounter;
+        }
+        else if ((AX_.readEncoder(MOTEUR) * DIAMETRE_ROUE * PI) / 1216 < -70)
         {
           AX_.setMotorPWM(0, 1);
         }
         else
         {
-            if (deccelCounter < 16 && millis()-prevMillis > 1)
+            if (deccelCounter < 16 && millis() - prevMillis > 1)
             {
               prevMillis = millis();
               AX_.setMotorPWM(0, 1-(deccelCounter*0.05));
@@ -297,6 +312,8 @@ void loop() {
         if (digitalRead(SWITCH_PIN))
         {
           deccelCounter = 0;
+          accelCounter = 0;
+          flagReculerVite = false;
           prevMillis = 0;
           AX_.setMotorPWM(0, 0.2);
         }
@@ -477,17 +494,6 @@ void readMsg(){
     boutonStart = false;
   }
 
-  parse_msg = doc["AimantOn"];
-  if (!parse_msg.isNull())
-  {
-    boutonAimant = true;
-  }
-
-  parse_msg = doc["AimantOff"];
-  if (!parse_msg.isNull())
-  {
-    boutonAimant = false;
-  }
 
   if(!parse_msg.isNull()) {
     pidPosG1 = doc["setGoal"][0];
